@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="midnight" style="color-scheme:dark">
+<head>
+  <script>
+    // Force Purge Old Service Worker & Cache Storage
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (let name of names) {
+          caches.delete(name);
+        }
+      });
+    }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIS Research Studio — Research OS</title>
+  <meta name="description" content="IRIS Research Studio: Next-generation Research Operating System for engineers, researchers, inventors and R&D teams.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="stylesheet" href="css/styles.css?v=30">
+</head>
+<body>
+<div id="iris-app">
+
+  <!-- ====================================================
+       GLOBAL TOP BAR
+       ==================================================== -->
+  <header id="topbar">
+    <div id="topbar-logo">
+      <div class="logo-icon">◆</div>
+      <span class="logo-text">IRIS</span>
+      <span class="logo-badge">Research OS</span>
+    </div>
+
+    <div id="topbar-search">
+      <i data-lucide="search" class="s-icon"></i>
+      <input type="text" id="global-search-input" placeholder="Araştırma, belge, etiket ara..." autocomplete="off">
+      <span class="search-kbd">⌘K</span>
+    </div>
+
+    <div id="topbar-actions">
+      <button class="topbar-btn" onclick="switchTab('dashboard')" title="Dashboard">
+        <i data-lucide="layout-dashboard"></i>
+      </button>
+      <button id="topbar-new-btn" onclick="openNewObjectModal()">
+        <i data-lucide="plus"></i> Yeni Nesne
+      </button>
+      <button class="topbar-btn" onclick="switchTab('settings')" title="Ayarlar">
+        <i data-lucide="settings"></i>
+      </button>
+      <div id="topbar-avatar" onclick="switchTab('settings')" title="Profil">
+        <span id="topbar-avatar-initials">AR</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ====================================================
+       LEFT SIDEBAR
+       ==================================================== -->
+  <aside id="sidebar">
+
+    <!-- New Object Button -->
+    <button id="btn-new-obj" onclick="openNewObjectModal()">
+      <i data-lucide="plus-circle"></i>
+      <span>Yeni Bilgi Nesnesi</span>
+    </button>
+
+    <!-- Main Navigation -->
+    <nav id="sidebar-nav">
+      <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-tab="library" onclick="switchTab('library')">
+        <i data-lucide="library"></i>
+        <span>Kütüphane</span>
+        <span class="nav-badge" id="nav-badge-library">0</span>
+      </div>
+      <div class="nav-item" data-tab="editor" onclick="switchTab('editor')">
+        <i data-lucide="file-edit"></i>
+        <span>Editör</span>
+      </div>
+      <div class="nav-item" data-tab="reports" onclick="switchTab('reports')">
+        <i data-lucide="bar-chart-2"></i>
+        <span>Raporlar</span>
+      </div>
+      <div class="nav-item" data-tab="trash" onclick="switchTab('trash')">
+        <i data-lucide="trash-2"></i>
+        <span>Çöp Kutusu</span>
+        <span class="nav-badge" id="nav-badge-trash" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-tab="settings" onclick="switchTab('settings')">
+        <i data-lucide="settings"></i>
+        <span>Ayarlar</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Explorer Tree -->
+    <div id="sidebar-explorer">
+
+      <!-- Collections Section -->
+      <div class="exp-section">
+        <div class="exp-section-hdr" onclick="toggleExpSection(this)">
+          <i data-lucide="chevron-down" class="exp-arrow"></i>
+          <span>Koleksiyonlar</span>
+        </div>
+        <div class="exp-content" id="exp-collections-tree">
+          <!-- Dynamic -->
+        </div>
+      </div>
+
+      <!-- By Type Section -->
+      <div class="exp-section">
+        <div class="exp-section-hdr" onclick="toggleExpSection(this)">
+          <i data-lucide="chevron-down" class="exp-arrow"></i>
+          <span>Türe Göre</span>
+        </div>
+        <div class="exp-content" id="exp-types-tree">
+          <!-- Dynamic -->
+        </div>
+      </div>
+
+      <!-- Favorites Section -->
+      <div class="exp-section">
+        <div class="exp-section-hdr" onclick="toggleExpSection(this)">
+          <i data-lucide="chevron-down" class="exp-arrow"></i>
+          <span>Favoriler</span>
+        </div>
+        <div class="exp-content" id="exp-fav-tree">
+          <!-- Dynamic -->
+        </div>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- ====================================================
+       MAIN CONTENT
+       ==================================================== -->
+  <main id="main-content">
+
+    <!-- ── DASHBOARD TAB ── -->
+    <section class="tab-panel active" id="tab-dashboard">
+      <div class="dash-inner">
+
+        <div class="dash-welcome">
+          <div>
+            <h1>Hoş geldiniz, <span id="dash-user-name">Araştırmacı</span>!</h1>
+            <p>Araştırma çalışma alanınız hazır. Bugün ne keşfetmek istiyorsunuz?</p>
+          </div>
+          <div class="dash-date" id="dash-date-display"></div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Toplam Nesne</span>
+              <div class="stat-card-icon" style="background:rgba(99,102,241,0.15)">
+                <i data-lucide="database" style="color:#818cf8"></i>
+              </div>
+            </div>
+            <div class="stat-card-value" id="stat-total">0</div>
+            <div class="stat-card-sub">Tüm bilgi nesneleri <span class="stat-trend up">↑ +12%</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Tamamlandı</span>
+              <div class="stat-card-icon" style="background:rgba(16,185,129,0.15)">
+                <i data-lucide="check-circle-2" style="color:#34d399"></i>
+              </div>
+            </div>
+            <div class="stat-card-value" id="stat-completed">0</div>
+            <div class="stat-card-sub">Finalize edilmiş belge <span class="stat-trend up">↑ +8%</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Favoriler</span>
+              <div class="stat-card-icon" style="background:rgba(245,158,11,0.15)">
+                <i data-lucide="star" style="color:#fbbf24"></i>
+              </div>
+            </div>
+            <div class="stat-card-value" id="stat-fav">0</div>
+            <div class="stat-card-sub">Önemli işaretli <span class="stat-trend neutral">● 0%</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Toplam Kelime</span>
+              <div class="stat-card-icon" style="background:rgba(6,182,212,0.15)">
+                <i data-lucide="type" style="color:#22d3ee"></i>
+              </div>
+            </div>
+            <div class="stat-card-value" id="stat-words">0</div>
+            <div class="stat-card-sub">Tüm dokümanlarda <span class="stat-trend up">↑ +24%</span></div>
+          </div>
+        </div>
+
+        <!-- Dashboard Body -->
+        <div class="dash-body">
+
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <!-- Heatmap -->
+            <div class="heatmap-card">
+              <div class="card-title" style="justify-content:space-between;">
+                <span style="display:flex;align-items:center;gap:6px;"><i data-lucide="activity"></i> Araştırma Aktivitesi — Son 15 Gün</span>
+                <span id="heatmap-alltime-badge" style="font-size:10px;color:var(--text-faint);font-weight:400;"></span>
+              </div>
+              <div id="heatmap-grid" style="display:flex;gap:4px;flex-wrap:nowrap;margin-top:10px;align-items:center;">
+                <!-- Dynamic -->
+              </div>
+              <div id="heatmap-legend" style="display:flex;align-items:center;gap:5px;margin-top:10px;font-size:9px;color:var(--text-faint);">
+                <span>Az</span>
+                <div style="width:10px;height:10px;border-radius:2px;background:rgba(90,106,232,0.08);border:1px solid var(--border);"></div>
+                <div style="width:10px;height:10px;border-radius:2px;background:rgba(90,106,232,0.25);"></div>
+                <div style="width:10px;height:10px;border-radius:2px;background:rgba(90,106,232,0.55);"></div>
+                <div style="width:10px;height:10px;border-radius:2px;background:rgba(90,106,232,0.85);"></div>
+                <span>Çok</span>
+              </div>
+            </div>
+
+            <!-- Recent Documents -->
+            <div class="glass" style="padding:18px;">
+              <div class="card-title">
+                <i data-lucide="clock"></i>
+                Son Düzenlenenler
+              </div>
+              <div class="recent-list" id="dash-recent-list">
+                <div class="empty-state" style="padding:30px 0">
+                  <div class="empty-icon"><i data-lucide="inbox"></i></div>
+                  <p>Henüz belge yok</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <!-- Research Score -->
+            <div class="glass" style="padding:18px">
+              <div class="card-title">
+                <i data-lucide="zap"></i>
+                Araştırma Skoru
+              </div>
+              <div class="research-score-card">
+                <div class="score-ring">
+                  <svg viewBox="0 0 90 90" width="90" height="90">
+                    <circle class="score-ring-track" cx="45" cy="45" r="38"></circle>
+                    <circle class="score-ring-fill" id="score-ring-fill" cx="45" cy="45" r="38"
+                      stroke-dasharray="239" stroke-dashoffset="239"></circle>
+                  </svg>
+                  <div class="score-value" id="score-value">0</div>
+                </div>
+                <div class="score-label" id="score-label">Başlangıç Seviyesi</div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="glass" style="padding:18px">
+              <div class="card-title">
+                <i data-lucide="lightning-bolt"></i>
+                Hızlı Eylemler
+              </div>
+              <div class="quick-actions">
+                <div class="qa-btn" onclick="quickCreateAndOpen('patent')">
+                  <i data-lucide="scroll-text"></i>
+                  <span>Yeni Patent</span>
+                  <small>İnceleme başlat</small>
+                </div>
+                <div class="qa-btn" onclick="quickCreateAndOpen('article')">
+                  <i data-lucide="book-open"></i>
+                  <span>Yeni Makale</span>
+                  <small>Analiz ekle</small>
+                </div>
+                <div class="qa-btn" onclick="switchTab('library')">
+                  <i data-lucide="library"></i>
+                  <span>Kütüphane</span>
+                  <small>Tüm nesneler</small>
+                </div>
+                <div class="qa-btn" onclick="switchTab('reports')">
+                  <i data-lucide="file-text"></i>
+                  <span>Rapor Üret</span>
+                  <small>PDF / Word</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Type Breakdown -->
+            <div class="glass" style="padding:18px">
+              <div class="card-title">
+                <i data-lucide="pie-chart"></i>
+                Tür Dağılımı
+              </div>
+              <div id="type-breakdown-list" style="display:flex;flex-direction:column;gap:7px;margin-top:8px;">
+                <!-- Dynamic -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── LIBRARY TAB ── -->
+    <section class="tab-panel" id="tab-library">
+      <div class="lib-toolbar">
+        <h2>Kütüphane</h2>
+        <div class="view-switcher">
+          <button class="view-btn active" id="view-btn-grid" onclick="setLibView('grid')" title="Grid Görünüm">
+            <i data-lucide="layout-grid"></i>
+          </button>
+          <button class="view-btn" id="view-btn-list" onclick="setLibView('list')" title="Liste Görünüm">
+            <i data-lucide="list"></i>
+          </button>
+        </div>
+        <div style="flex:1;max-width:280px;position:relative;">
+          <i data-lucide="search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--text-muted);pointer-events:none;"></i>
+          <input type="text" id="lib-search" placeholder="Belgede ara..." style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-full);padding:5px 10px 5px 28px;font-size:11px;color:var(--text-primary);font-family:Inter,sans-serif;outline:none;" oninput="filterLibrary()">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openNewObjectModal()">
+          <i data-lucide="plus"></i> Yeni
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="openNewCollectionModal()">
+          <i data-lucide="folder-plus"></i> Koleksiyon
+        </button>
+      </div>
+
+      <div class="lib-filters" id="lib-filters">
+        <button class="filter-chip active" data-filter="all" onclick="setTypeFilter('all',this)">
+          Tümü
+        </button>
+        <button class="filter-chip" data-filter="patent" onclick="setTypeFilter('patent',this)">
+          <i data-lucide="scroll-text" style="width:9px;height:9px"></i> Patent
+        </button>
+        <button class="filter-chip" data-filter="article" onclick="setTypeFilter('article',this)">
+          <i data-lucide="book-open" style="width:9px;height:9px"></i> Makale
+        </button>
+        <button class="filter-chip" data-filter="standard" onclick="setTypeFilter('standard',this)">
+          <i data-lucide="shield-check" style="width:9px;height:9px"></i> Standart
+        </button>
+        <button class="filter-chip" data-filter="project" onclick="setTypeFilter('project',this)">
+          <i data-lucide="folder-kanban" style="width:9px;height:9px"></i> Proje
+        </button>
+        <button class="filter-chip" data-filter="note" onclick="setTypeFilter('note',this)">
+          <i data-lucide="sticky-note" style="width:9px;height:9px"></i> Not
+        </button>
+        <button class="filter-chip" data-filter="favorite" onclick="setTypeFilter('favorite',this)">
+          <i data-lucide="star" style="width:9px;height:9px"></i> Favoriler
+        </button>
+        <div style="margin-left:auto;display:flex;gap:5px;align-items:center">
+          <label style="font-size:10px;color:var(--text-muted)">Sırala:</label>
+          <select id="lib-sort" onchange="filterLibrary()" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-size:10px;padding:3px 6px;outline:none;cursor:pointer;font-family:Inter,sans-serif;">
+            <option value="newest">En Yeni</option>
+            <option value="oldest">En Eski</option>
+            <option value="title">Başlık (A-Z)</option>
+            <option value="progress">İlerleme</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="lib-content">
+        <div id="lib-grid" class="lib-grid">
+          <!-- Dynamic -->
+        </div>
+        <div id="lib-list" class="lib-list hidden">
+          <div class="lib-list-hdr">
+            <span></span>
+            <span>Başlık</span>
+            <span>Tür</span>
+            <span>Durum</span>
+            <span>İlerleme</span>
+            <span>Tarih</span>
+          </div>
+          <div id="lib-list-body"><!-- Dynamic --></div>
+        </div>
+        <div id="lib-empty" class="empty-state hidden">
+          <div class="empty-icon"><i data-lucide="folder-open"></i></div>
+          <h3>Bilgi Nesnesi Bulunamadı</h3>
+          <p>Arama kriterlerinizle eşleşen belge yok. Yeni bir nesne oluşturun veya filtreleri değiştirin.</p>
+          <button class="btn btn-primary" onclick="openNewObjectModal()">
+            <i data-lucide="plus"></i> Yeni Nesne Oluştur
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── EDITOR TAB ── -->
+    <section class="tab-panel" id="tab-editor">
+
+      <!-- Left: Editor Explorer -->
+      <div id="editor-explorer">
+        <div id="editor-explorer-hdr">
+          <i data-lucide="folder-open"></i>
+          Explorer
+        </div>
+        <!-- Document Outline / TOC Section -->
+        <div class="outline-section">
+          <div class="outline-title"><i data-lucide="list-tree"></i> İçindekiler (TOC)</div>
+          <div class="outline-tree" id="doc-outline-tree">
+            <span style="font-size:10px;color:var(--text-faint)">Başlık yok</span>
+          </div>
+        </div>
+        <div id="editor-exp-tree">
+          <!-- Dynamic -->
+        </div>
+      </div>
+
+      <!-- Center: Editor Workspace -->
+      <div id="editor-workspace">
+        <input type="hidden" id="record-id">
+
+        <!-- Mode Bar -->
+        <div id="editor-mode-bar">
+          <button class="mode-tab active" id="mode-tab-a4" onclick="setEditorMode('a4')">
+            <i data-lucide="file-text"></i> A4 Belge
+          </button>
+          <button class="mode-tab" id="mode-tab-canvas" onclick="setEditorMode('canvas')">
+            <i data-lucide="layout-template"></i> Tuval
+          </button>
+          <button class="mode-tab" id="mode-tab-split" onclick="setEditorMode('split')">
+            <i data-lucide="columns"></i> Bölünmüş
+          </button>
+          <div id="mode-actions">
+            <button class="btn btn-secondary btn-sm" onclick="saveCurrentRecord()">
+              <i data-lucide="save"></i> Kaydet
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCurrentRecord()">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Ribbon Toolbar -->
+        <div id="editor-ribbon">
+          <div class="ribbon-tabs-bar">
+            <button class="ribbon-tab-btn active" onclick="switchRibbon('yazim',this)">Yazım & Format</button>
+            <button class="ribbon-tab-btn" onclick="switchRibbon('ekle',this)">Ekle</button>
+            <button class="ribbon-tab-btn" onclick="switchRibbon('duzeni',this)">Sayfa Düzeni</button>
+            <button class="ribbon-tab-btn" onclick="switchRibbon('sablonlar',this)">Şablonlar</button>
+            <button class="ribbon-tab-btn" onclick="switchRibbon('kaynakca',this)">Kaynakça</button>
+            <button class="ribbon-tab-btn" onclick="switchRibbon('araclar',this)">Araçlar</button>
+          </div>
+          <div class="ribbon-content active" id="ribbon-yazim">
+            <div class="ribbon-group">
+              <select class="rb-select" id="rb-font-size" onchange="applyFontSize(this.value)">
+                <option>12px</option><option selected>14px</option><option>16px</option><option>18px</option><option>20px</option>
+              </select>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="wrapText('**','**')" title="Kalın"><i data-lucide="bold"></i>Kalın</button>
+              <button class="rb-btn" onclick="wrapText('*','*')" title="İtalik"><i data-lucide="italic"></i>İtalik</button>
+              <button class="rb-btn" onclick="wrapText('~~','~~')" title="Üstü Çizili"><i data-lucide="strikethrough"></i>Çizili</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="insertPrefix('# ')" title="H1"><i data-lucide="heading-1"></i>H1</button>
+              <button class="rb-btn" onclick="insertPrefix('## ')" title="H2"><i data-lucide="heading-2"></i>H2</button>
+              <button class="rb-btn" onclick="insertPrefix('### ')" title="H3"><i data-lucide="heading-3"></i>H3</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="insertPrefix('- ')" title="Madde"><i data-lucide="list"></i>Madde</button>
+              <button class="rb-btn" onclick="insertPrefix('1. ')" title="Numaralı"><i data-lucide="list-ordered"></i>Numara</button>
+              <button class="rb-btn" onclick="insertPrefix('> ')" title="Alıntı"><i data-lucide="quote"></i>Alıntı</button>
+            </div>
+          </div>
+          <div class="ribbon-content" id="ribbon-ekle">
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="openCoverModal()"><i data-lucide="layout"></i>Kapak Sayfası</button>
+              <button class="rb-btn" onclick="insertPageBreak()"><i data-lucide="file-plus"></i>Sayfa Sonu (A4)</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="triggerImageUpload()"><i data-lucide="image"></i>Görsel Yükle</button>
+              <input type="file" id="image-upload-input" accept="image/*" style="display:none" onchange="handleImageFileSelect(this)">
+              <button class="rb-btn" onclick="insertCitation()"><i data-lucide="bookmark"></i>Atıf / Referans</button>
+              <button class="rb-btn" onclick="generateBibliography()"><i data-lucide="books"></i>Kaynakça Derle</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="insertTable()"><i data-lucide="table"></i>Tablo</button>
+              <button class="rb-btn" onclick="insertCodeBlock()"><i data-lucide="code-2"></i>Kod</button>
+              <button class="rb-btn" onclick="insertLink()"><i data-lucide="link"></i>Link</button>
+              <button class="rb-btn" onclick="insertHR()"><i data-lucide="minus"></i>Çizgi</button>
+            </div>
+          </div>
+          <div class="ribbon-content" id="ribbon-sablonlar">
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="applyTemplate('patent')"><i data-lucide="scroll-text"></i>Patent</button>
+              <button class="rb-btn" onclick="applyTemplate('article')"><i data-lucide="book-open"></i>Makale</button>
+              <button class="rb-btn" onclick="applyTemplate('technical')"><i data-lucide="cpu"></i>Teknik</button>
+              <button class="rb-btn" onclick="applyTemplate('meeting')"><i data-lucide="users"></i>Toplantı</button>
+              <button class="rb-btn" onclick="applyTemplate('risk')"><i data-lucide="alert-triangle"></i>Risk</button>
+            </div>
+          </div>
+          <div class="ribbon-content" id="ribbon-duzeni">
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="toggleHeaderEditor()"><i data-lucide="panel-top"></i>Üst Bilgi</button>
+              <button class="rb-btn" onclick="toggleFooterEditor()"><i data-lucide="panel-bottom"></i>Alt Bilgi</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="setPageMargin('normal')"><i data-lucide="layout"></i>Normal Kenar Boşluk</button>
+              <button class="rb-btn" onclick="setPageMargin('narrow')"><i data-lucide="move-horizontal"></i>Dar</button>
+              <button class="rb-btn" onclick="setPageMargin('wide')"><i data-lucide="maximize-2"></i>Geniş</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="setLineSpacing('1')"><i data-lucide="baseline"></i>1× Satır Aralığı</button>
+              <button class="rb-btn" onclick="setLineSpacing('1.5')"><i data-lucide="align-justify"></i>1.5×</button>
+              <button class="rb-btn" onclick="setLineSpacing('2')"><i data-lucide="lines"></i>2×</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="setColumnLayout('1')"><i data-lucide="square"></i>Tek Sütun</button>
+              <button class="rb-btn" onclick="setColumnLayout('2')"><i data-lucide="columns"></i>İki Sütun</button>
+            </div>
+          </div>
+          <div class="ribbon-content" id="ribbon-kaynakca">
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="openAddCitationModal()"><i data-lucide="plus-circle"></i>Kaynak Ekle</button>
+              <button class="rb-btn" onclick="generateBibliography()"><i data-lucide="book-marked"></i>Kaynakça Derle</button>
+              <button class="rb-btn" onclick="insertInlineCitation()"><i data-lucide="hash"></i>Metin İçi Atıf</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="setCitationStyle('apa')"><i data-lucide="type"></i>APA</button>
+              <button class="rb-btn" onclick="setCitationStyle('mla')"><i data-lucide="type"></i>MLA</button>
+              <button class="rb-btn" onclick="setCitationStyle('ieee')"><i data-lucide="type"></i>IEEE</button>
+              <button class="rb-btn" onclick="setCitationStyle('chicago')"><i data-lucide="type"></i>Chicago</button>
+            </div>
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="showCitationManager()"><i data-lucide="list"></i>Kaynak Yöneticisi</button>
+            </div>
+          </div>
+          <div class="ribbon-content" id="ribbon-araclar">
+            <div class="ribbon-group">
+              <button class="rb-btn" onclick="exportCurrentMD()"><i data-lucide="file-down"></i>MD İndir</button>
+              <button class="rb-btn" onclick="exportCurrentPDF()"><i data-lucide="file-type-2"></i>PDF</button>
+              <button class="rb-btn" onclick="copyCurrentText()"><i data-lucide="copy"></i>Kopyala</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Title -->
+        <div id="editor-title-bar">
+          <input type="text" id="rec-form-title" placeholder="Belge başlığını girin..." autocomplete="off">
+        </div>
+
+        <!-- A4 Area -->
+        <div id="editor-a4-area">
+          <!-- Header Editor (toggleable) -->
+          <div id="header-editor-bar" class="header-footer-bar" style="display:none;">
+            <div class="hf-label"><i data-lucide="panel-top" style="width:11px;height:11px;"></i> ÜST BİLGİ</div>
+            <div class="hf-fields">
+              <input id="hf-left" class="hf-input" placeholder="Sol — örn. Kurum adı">
+              <input id="hf-center" class="hf-input" placeholder="Orta — örn. Belge başlığı">
+              <input id="hf-right" class="hf-input" placeholder="Sağ — örn. {sayfa} / {toplam}">
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="applyHeaderFooter()" style="font-size:10px;">Uygula</button>
+            <button class="btn btn-ghost btn-sm" onclick="closeHeaderFooterBar('header')" style="font-size:10px;">✕</button>
+          </div>
+          <textarea id="rec-form-notes" style="display:none;"></textarea>
+          <div class="a4-scroll-area" id="a4-scroll-area">
+            <!-- Pages will be dynamically generated here by renderMultiPageA4Sheets -->
+          </div>
+          <!-- Footer Editor (toggleable) -->
+          <div id="footer-editor-bar" class="header-footer-bar" style="display:none;">
+            <div class="hf-label"><i data-lucide="panel-bottom" style="width:11px;height:11px;"></i> ALT BİLGİ</div>
+            <div class="hf-fields">
+              <input id="hf-ftr-left" class="hf-input" placeholder="Sol — örn. Gizli">
+              <input id="hf-ftr-center" class="hf-input" placeholder="Orta — örn. {tarih}">
+              <input id="hf-ftr-right" class="hf-input" placeholder="Sağ — örn. Sayfa {sayfa}">
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="applyHeaderFooter()" style="font-size:10px;">Uygula</button>
+            <button class="btn btn-ghost btn-sm" onclick="closeHeaderFooterBar('footer')" style="font-size:10px;">✕</button>
+          </div>
+          <div class="a4-status-bar">
+            <div id="autosave-indicator">
+              <i data-lucide="check-circle-2"></i>
+              <span>Kaydedildi</span>
+            </div>
+            <span id="citation-style-badge" style="font-size:9px;color:var(--primary-light);background:var(--primary-subtle);padding:1px 6px;border-radius:var(--radius-full);cursor:pointer;" onclick="showCitationStylePicker()" title="Atıf stili">APA</span>
+            <span id="editor-word-count">0 kelime</span>
+            <span id="editor-char-count">0 karakter</span>
+          </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div id="editor-canvas-area">
+          <div id="canvas-vp">
+            <svg id="canvas-svg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--primary)"/></marker></defs></svg>
+            <!-- Cards injected here -->
+          </div>
+          <div id="canvas-ctrls">
+            <button class="cc-btn" onclick="canvasZoomIn()" title="Yakınlaştır"><i data-lucide="zoom-in"></i></button>
+            <button class="cc-btn" onclick="canvasZoomOut()" title="Uzaklaştır"><i data-lucide="zoom-out"></i></button>
+            <button class="cc-btn" onclick="canvasReset()" title="Sıfırla"><i data-lucide="maximize-2"></i></button>
+            <button class="cc-btn" onclick="canvasAutoLayout()" title="Otomatik Düzen"><i data-lucide="layout-dashboard"></i></button>
+          </div>
+        </div>
+
+        <!-- Split Area -->
+        <div id="editor-split-area" style="flex:1;display:none;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;height:100%;overflow:hidden;">
+            <div style="display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border);">
+              <div class="split-pane-header"><span><i data-lucide="file-edit"></i> Editör</span></div>
+              <div style="flex:1;overflow-y:auto;padding:16px;display:flex;justify-content:center;">
+                <div class="a4-page" style="width:100%;max-width:580px;">
+                  <textarea id="rec-form-notes-split" placeholder="Bu bölme split view ile eş zamanlandı..."></textarea>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;overflow:hidden;">
+              <div class="split-pane-header">
+                <span><i data-lucide="eye"></i> Referans Önizleme</span>
+                <input type="text" id="split-url-input" placeholder="URL girin..." style="flex:1;max-width:260px;margin:0 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px 7px;font-size:10px;color:var(--text-primary);font-family:Inter,sans-serif;outline:none;" onkeydown="if(event.key==='Enter')loadSplitURL()">
+                <button class="btn btn-secondary btn-sm" onclick="loadSplitURL()" style="padding:2px 8px;font-size:10px;">Yükle</button>
+              </div>
+              <iframe id="split-iframe" src="about:blank" style="flex:1;border:none;background:#fff;"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Panel -->
+        <div id="editor-bottom-panel">
+          <div class="bp-tabs">
+            <button class="bp-tab-btn active" onclick="switchBPTab('comments',this)">
+              Yorumlar <span class="bp-tab-cnt" id="bp-cnt-comments">0</span>
+            </button>
+            <button class="bp-tab-btn" onclick="switchBPTab('tasks',this)">
+              Görevler <span class="bp-tab-cnt" id="bp-cnt-tasks">0</span>
+            </button>
+            <button class="bp-tab-btn" onclick="switchBPTab('attachments',this)">
+              Ekler <span class="bp-tab-cnt" id="bp-cnt-attachments">0</span>
+            </button>
+            <button class="bp-tab-btn" onclick="switchBPTab('versions',this)">
+              Sürümler <span class="bp-tab-cnt" id="bp-cnt-versions">0</span>
+            </button>
+            <button class="bp-tab-btn" onclick="switchBPTab('timeline',this)">
+              Timeline
+            </button>
+          </div>
+          <div class="bp-body">
+            <div class="bp-panel active" id="bp-comments">
+              <div id="comments-list"></div>
+            </div>
+            <div class="bp-panel" id="bp-tasks">
+              <div id="tasks-list"></div>
+            </div>
+            <div class="bp-panel" id="bp-attachments">
+              <div id="attachments-list"></div>
+            </div>
+            <div class="bp-panel" id="bp-versions">
+              <div id="versions-list"></div>
+            </div>
+            <div class="bp-panel" id="bp-timeline">
+              <div id="timeline-content" style="font-size:11px;color:var(--text-muted);line-height:1.8;"></div>
+            </div>
+          </div>
+          <div class="bp-add-row" id="bp-add-row-comments">
+            <input class="bp-input" id="comment-input" placeholder="Yorum ekle...">
+            <button class="btn btn-primary btn-sm" onclick="addComment()">Ekle</button>
+          </div>
+          <div class="bp-add-row hidden" id="bp-add-row-tasks">
+            <input class="bp-input" id="task-input" placeholder="Görev ekle...">
+            <button class="btn btn-primary btn-sm" onclick="addTask()">Ekle</button>
+          </div>
+          <div class="bp-add-row hidden" id="bp-add-row-attachments">
+            <input class="bp-input" id="attach-input" placeholder="URL veya dosya adı ekle...">
+            <button class="btn btn-primary btn-sm" onclick="addAttachment()">Ekle</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Properties Panel -->
+      <div id="editor-properties">
+        <div id="props-header">
+          <button class="props-toggle-btn" onclick="togglePropertiesPanel()" title="Daralt / Genişlet">
+            <i data-lucide="chevron-right" id="props-toggle-icon"></i>
+          </button>
+          <h3 class="props-title-text"><i data-lucide="sliders-horizontal"></i> Özellikler</h3>
+          <button class="btn btn-primary btn-sm props-save-btn" onclick="saveCurrentRecord()">
+            <i data-lucide="save"></i> Kaydet
+          </button>
+        </div>
+        <div class="props-scroll">
+
+          <div class="prop-group">
+            <div class="prop-group-lbl">Kimlik</div>
+            <div class="prop-row">
+              <span class="prop-lbl">Kod</span>
+              <span class="prop-code" id="prop-code">—</span>
+            </div>
+            <div class="prop-row">
+              <span class="prop-lbl">Tür</span>
+              <div class="prop-val">
+                <select class="prop-select" id="rec-form-type">
+                  <option value="patent">Patent</option>
+                  <option value="article">Makale / Yayın</option>
+                  <option value="standard">Standart / Norm</option>
+                  <option value="project">Proje Dokümanı</option>
+                  <option value="note">Araştırma Notu</option>
+                  <option value="other">Diğer</option>
+                </select>
+              </div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-lbl">Koleksiyon</span>
+              <div class="prop-val">
+                <select class="prop-select" id="rec-form-collection">
+                  <option value="">— Koleksiyon Seç —</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <div class="prop-group-lbl">Süreç</div>
+            <div class="prop-row">
+              <span class="prop-lbl">Durum</span>
+              <div class="prop-val">
+                <select class="prop-select" id="rec-form-status">
+                  <option value="taslak">Taslak</option>
+                  <option value="incelemede">İncelemede</option>
+                  <option value="tamamlandi">Tamamlandı</option>
+                </select>
+              </div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-lbl">Öncelik</span>
+              <div class="prop-val">
+                <select class="prop-select" id="rec-form-priority">
+                  <option value="dusuk">Düşük</option>
+                  <option value="orta" selected>Orta</option>
+                  <option value="yuksek">Yüksek</option>
+                </select>
+              </div>
+            </div>
+            <div class="prop-row" style="align-items:flex-start;flex-direction:column;gap:5px;">
+              <span class="prop-lbl">İlerleme</span>
+              <div style="width:100%;display:flex;align-items:center;gap:7px;">
+                <input type="range" id="rec-form-progress" min="0" max="100" value="0"
+                  style="flex:1;accent-color:var(--primary);"
+                  oninput="document.getElementById('prop-progress-pct').textContent=this.value+'%';document.getElementById('prop-prog-fill').style.width=this.value+'%'">
+                <span id="prop-progress-pct" style="font-size:10px;color:var(--text-muted);width:30px;">0%</span>
+              </div>
+              <div class="prop-prog-bar" style="width:100%;"><div class="prop-prog-fill" id="prop-prog-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <div class="prop-group-lbl">Detaylar</div>
+            <div class="prop-row">
+              <span class="prop-lbl">Yazar</span>
+              <div class="prop-val">
+                <input class="prop-input" id="rec-form-authors" placeholder="Yazar adı...">
+              </div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-lbl">Kaynak</span>
+              <div class="prop-val">
+                <input class="prop-input" id="rec-form-source" placeholder="Yayın kaynağı...">
+              </div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-lbl">URL</span>
+              <div class="prop-val">
+                <input class="prop-input" id="rec-form-url" placeholder="https://...">
+              </div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-lbl">Tarih</span>
+              <div class="prop-val">
+                <input class="prop-input" type="date" id="rec-form-date">
+              </div>
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <div class="prop-group-lbl">Etiketler</div>
+            <div class="tags-wrap" id="prop-tags-wrap"></div>
+            <input class="prop-input" id="rec-form-tags" placeholder="Etiket ekle (virgülle ayır)..." style="margin-top:5px;" onkeydown="if(event.key==='Enter'){addTagFromInput();event.preventDefault();}">
+          </div>
+
+          <div class="prop-group">
+            <div class="prop-group-lbl">İlişkili Belgeler</div>
+            <div id="prop-relations-list"></div>
+            <select class="prop-select" id="prop-relations-add" onchange="addRelationFromSelect(this)" style="margin-top:4px;">
+              <option value="">+ İlişki Ekle...</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <div class="prop-group-lbl">Favori</div>
+            <div class="prop-row">
+              <span class="prop-lbl">Önemli</span>
+              <div class="prop-val">
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--text-secondary);">
+                  <input type="checkbox" id="rec-form-fav" style="accent-color:var(--accent-amber);width:14px;height:14px;">
+                  Favori olarak işaretle
+                </label>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div id="props-actions">
+          <button class="btn btn-primary btn-full" onclick="saveCurrentRecord()">
+            <i data-lucide="save"></i> Kaydet
+          </button>
+          <button class="btn btn-danger btn-full btn-sm" onclick="deleteCurrentRecord()">
+            <i data-lucide="trash-2"></i> Çöpe Taşı
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── REPORTS TAB ── -->
+    <section class="tab-panel" id="tab-reports">
+      <div class="reports-inner">
+        <div class="reports-hdr">
+          <h2>Profesyonel Rapor Üretici</h2>
+          <p>Araştırma nesnelerinizi tek tıkla kurumsal kalitede PDF, Word veya Excel raporlarına dönüştürün.</p>
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <div class="prop-group-lbl" style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Rapor Formatı Seçin</div>
+          <div class="report-type-grid">
+            <div class="rtype-card sel" id="rtype-pdf" onclick="selectReportType('pdf')">
+              <i data-lucide="file-type-2"></i>
+              <h3>PDF Raporu</h3>
+              <p>Kapak sayfası, içindekiler, kaynakça ile kurumsal PDF</p>
+            </div>
+            <div class="rtype-card" id="rtype-word" onclick="selectReportType('word')">
+              <i data-lucide="file-text"></i>
+              <h3>Word Raporu</h3>
+              <p>Düzenlenebilir .docx formatında kurumsal belge</p>
+            </div>
+            <div class="rtype-card" id="rtype-excel" onclick="selectReportType('excel')">
+              <i data-lucide="file-spreadsheet"></i>
+              <h3>Excel Tablosu</h3>
+              <p>Metadata ve istatistikleri içeren tablo formatı</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass" style="padding:18px;margin-bottom:16px;">
+          <div class="prop-group-lbl" style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Rapor Bilgileri</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Rapor Başlığı</label>
+              <input class="form-input" id="report-title" placeholder="Araştırma Raporu">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Alt Başlık</label>
+              <input class="form-input" id="report-subtitle" placeholder="IRIS Research Studio">
+            </div>
+          </div>
+          <div class="form-group" style="margin:12px 0 0">
+            <label class="form-label">Açıklama</label>
+            <input class="form-input" id="report-desc" placeholder="Bu rapor hakkında kısa açıklama...">
+          </div>
+        </div>
+
+        <div class="glass" style="padding:18px;margin-bottom:16px;">
+          <div class="prop-group-lbl" style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">
+            Rapora Dahil Edilecek Belgeler
+            <span id="report-select-count" style="color:var(--primary-light);margin-left:6px;">0 seçili</span>
+          </div>
+          <div id="report-doc-list" style="display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto;">
+            <!-- Dynamic -->
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-primary" onclick="generateReport()" style="padding:10px 22px;font-size:13px;">
+            <i data-lucide="file-down"></i> Raporu Üret
+          </button>
+          <button class="btn btn-secondary" onclick="selectAllReportDocs()">Tümünü Seç</button>
+          <button class="btn btn-ghost" onclick="clearReportDocs()">Seçimi Temizle</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TRASH TAB ── -->
+    <section class="tab-panel" id="tab-trash">
+      <div class="trash-inner">
+        <div class="trash-hdr">
+          <h2><i data-lucide="trash-2"></i> Çöp Kutusu</h2>
+          <button class="btn btn-danger btn-sm" onclick="emptyTrash()">
+            <i data-lucide="trash"></i> Tümünü Kalıcı Sil
+          </button>
+        </div>
+        <div class="trash-list" id="trash-list">
+          <div class="empty-state">
+            <div class="empty-icon"><i data-lucide="check-circle-2"></i></div>
+            <h3>Çöp Kutusu Boş</h3>
+            <p>Silinen belgeler burada görünür ve geri alınabilir.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SETTINGS TAB ── -->
+    <section class="tab-panel" id="tab-settings">
+      <div class="settings-inner">
+
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i data-lucide="user"></i> Profil Bilgileri
+          </div>
+          <div class="profile-card">
+            <div class="prof-av-wrap" onclick="document.getElementById('profile-img-input').click()">
+              <div class="prof-av" id="profile-avatar-el">
+                <span id="profile-av-initials">AR</span>
+              </div>
+              <div class="prof-av-ovl"><i data-lucide="camera"></i></div>
+              <input type="file" id="profile-img-input" accept="image/*" style="display:none" onchange="uploadProfileImage(this)">
+            </div>
+            <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Ad Soyad</label>
+                <input class="form-input" id="profile-name" placeholder="Adınız Soyadınız">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Ünvan / Görev</label>
+                <input class="form-input" id="profile-role" placeholder="Ar-Ge Mühendisi">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">E-posta</label>
+                <input class="form-input" id="profile-email" placeholder="mail@kurum.com">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Kurum</label>
+                <input class="form-input" id="profile-institution" placeholder="Araştırma Kurumu">
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveProfile()">
+            <i data-lucide="save"></i> Profili Kaydet
+          </button>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i data-lucide="palette"></i> Tema
+          </div>
+          <div class="theme-grid">
+            <div class="theme-opt active" data-theme-val="midnight" onclick="applyTheme('midnight',this)">
+              <div class="theme-prev">
+                <div class="theme-prev-in">
+                  <div style="background:#070d1a"></div>
+                  <div style="background:#030712"></div>
+                </div>
+              </div>
+              <span class="theme-name">Midnight</span>
+            </div>
+            <div class="theme-opt" data-theme-val="ocean" onclick="applyTheme('ocean',this)">
+              <div class="theme-prev">
+                <div class="theme-prev-in">
+                  <div style="background:#061525"></div>
+                  <div style="background:#020b18"></div>
+                </div>
+              </div>
+              <span class="theme-name">Ocean</span>
+            </div>
+            <div class="theme-opt" data-theme-val="nord" onclick="applyTheme('nord',this)">
+              <div class="theme-prev">
+                <div class="theme-prev-in">
+                  <div style="background:#151a26"></div>
+                  <div style="background:#1a1f2e"></div>
+                </div>
+              </div>
+              <span class="theme-name">Nord</span>
+            </div>
+            <div class="theme-opt" data-theme-val="graphite" onclick="applyTheme('graphite',this)">
+              <div class="theme-prev">
+                <div class="theme-prev-in">
+                  <div style="background:#0a0a0a"></div>
+                  <div style="background:#111111"></div>
+                </div>
+              </div>
+              <span class="theme-name">Graphite</span>
+            </div>
+            <div class="theme-opt" data-theme-val="emerald" onclick="applyTheme('emerald',this)">
+              <div class="theme-prev">
+                <div class="theme-prev-in">
+                  <div style="background:#041208"></div>
+                  <div style="background:#020f0a"></div>
+                </div>
+              </div>
+              <span class="theme-name">Emerald</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i data-lucide="database"></i> Veri Yönetimi
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="exportDB()">
+              <i data-lucide="download"></i> Veriyi Dışa Aktar (.json)
+            </button>
+            <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">
+              <i data-lucide="upload"></i> Veri İçe Aktar
+            </button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importDB(this)">
+            <button class="btn btn-danger" onclick="resetAppConfirm()">
+              <i data-lucide="alert-triangle"></i> Fabrika Ayarları
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i data-lucide="info"></i> Hakkında
+          </div>
+          <div class="glass" style="padding:14px;display:flex;align-items:center;gap:14px;">
+            <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--primary),var(--accent-violet));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:white;font-family:Outfit,sans-serif;">◆</div>
+            <div>
+              <div style="font-size:15px;font-weight:800;color:var(--text-primary);font-family:Outfit,sans-serif;">IRIS Research Studio</div>
+              <div style="font-size:11px;color:var(--text-muted);">v2.0 — Research Operating System</div>
+              <div style="font-size:10px;color:var(--text-faint);margin-top:3px;">Local-First · Offline-First · Privacy-First</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============================================================
+     MODALS
+     ============================================================ -->
+
+
+<!-- Cover Page Template Modal -->
+<div class="modal-overlay" id="cover-modal">
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-header">
+      <h2><i data-lucide="layout"></i> Kapak Sayfası Şablonu Seçin</h2>
+      <button class="modal-close" onclick="closeModal('cover-modal')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Belgenizin en başına eklemek istediğiniz kurumsal kapak tasarımını seçin:</p>
+      <div class="cover-template-grid">
+        <div class="cover-tpl-card" onclick="applyCoverTemplate('executive')">
+          <h4>🏢 Yönetici Raporu</h4>
+          <p>Yönetim ve Ar-Ge liderleri için şık, kurumsal mavi çizgili kapak.</p>
+        </div>
+        <div class="cover-tpl-card" onclick="applyCoverTemplate('academic')">
+          <h4>🎓 Akademik / Bilimsel</h4>
+          <p>Makale, tez ve üniversite araştırmaları için özgül kapak düzeni.</p>
+        </div>
+        <div class="cover-tpl-card" onclick="applyCoverTemplate('patent')">
+          <h4>📜 Patent İnceleme</h4>
+          <p>Mucit, başvuru no ve koruma istemleri odaklı resmi patent kapağı.</p>
+        </div>
+        <div class="cover-tpl-card" onclick="applyCoverTemplate('minimal')">
+          <h4>✨ Minimalist Ar-Ge</h4>
+          <p>Sade, modern ve tipografi odaklı proje çalışma kapağı.</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cover-modal')">İptal</button>
+      <button class="btn btn-danger btn-sm" onclick="removeCoverPage()" style="margin-left:auto">
+        <i data-lucide="trash-2"></i> Kapağı Kaldır
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Citation Manager Modal -->
+<div class="modal-overlay" id="citation-manager-modal">
+  <div class="modal-box" style="max-width:680px;">
+    <div class="modal-header">
+      <h2><i data-lucide="book-marked"></i> Kaynak Yöneticisi</h2>
+      <button class="modal-close" onclick="closeModal('citation-manager-modal')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <div style="flex:1">
+          <input class="form-input" id="cite-search" placeholder="Kaynak ara..." oninput="filterCitations()" style="font-size:11px;">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAddCitationModal()"><i data-lucide="plus"></i> Yeni Kaynak</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;" id="cite-style-btns">
+        <button class="filter-chip active" data-style="apa" onclick="setCitationStyle('apa',this)">APA</button>
+        <button class="filter-chip" data-style="mla" onclick="setCitationStyle('mla',this)">MLA</button>
+        <button class="filter-chip" data-style="ieee" onclick="setCitationStyle('ieee',this)">IEEE</button>
+        <button class="filter-chip" data-style="chicago" onclick="setCitationStyle('chicago',this)">Chicago</button>
+      </div>
+      <div id="citation-list" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;">
+        <!-- Dynamic -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('citation-manager-modal')">Kapat</button>
+      <button class="btn btn-primary" onclick="generateBibliography();closeModal('citation-manager-modal')">
+        <i data-lucide="book-marked"></i> Kaynakçayı Belgeye Ekle
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Citation Modal -->
+<div class="modal-overlay" id="add-citation-modal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-header">
+      <h2><i data-lucide="plus-circle"></i> Kaynak Ekle</h2>
+      <button class="modal-close" onclick="closeModal('add-citation-modal')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Kaynak Türü</label>
+        <select class="form-select" id="cite-type" onchange="updateCiteForm()">
+          <option value="article">Makale / Dergi</option>
+          <option value="book">Kitap</option>
+          <option value="conference">Konferans Bildirisi</option>
+          <option value="patent">Patent</option>
+          <option value="standard">Standart / Norm</option>
+          <option value="website">Web Sitesi</option>
+          <option value="report">Teknik Rapor</option>
+          <option value="thesis">Tez</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Yazar(lar)</label>
+        <input class="form-input" id="cite-authors" placeholder="Soyadı, Ad; Soyadı2, Ad2">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Başlık *</label>
+        <input class="form-input" id="cite-title" placeholder="Kaynak başlığı">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Yıl</label>
+          <input class="form-input" id="cite-year" type="number" placeholder="2024" min="1000" max="2099">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sayfa / DOI</label>
+          <input class="form-input" id="cite-pages" placeholder="pp. 1-12 veya DOI">
+        </div>
+      </div>
+      <div class="form-group" id="cite-journal-group">
+        <label class="form-label">Dergi / Konferans / Yayınevi</label>
+        <input class="form-input" id="cite-journal" placeholder="Nature, IEEE CVPR, Springer...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL (opsiyonel)</label>
+        <input class="form-input" id="cite-url" placeholder="https://doi.org/...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kısa Etiket (metin içi atıf için)</label>
+        <input class="form-input" id="cite-key" placeholder="ör: Smith2024 veya otomatik">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('add-citation-modal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveCitation()">
+        <i data-lucide="save"></i> Kaydet
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- New / Edit Object Modal -->
+<div class="modal-overlay" id="new-object-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="new-object-modal-title">Yeni Bilgi Nesnesi</h2>
+      <button class="modal-close" onclick="closeModal('new-object-modal')">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="modal-record-id">
+      <div class="form-group">
+        <label class="form-label">Başlık *</label>
+        <input class="form-input" id="modal-title" placeholder="Belge / Buluş başlığı..." required>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Tür</label>
+          <select class="form-select" id="modal-type">
+            <option value="patent">Patent</option>
+            <option value="article">Makale / Yayın</option>
+            <option value="standard">Standart / Norm</option>
+            <option value="project">Proje Dokümanı</option>
+            <option value="note">Araştırma Notu</option>
+            <option value="other">Diğer</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Koleksiyon</label>
+          <select class="form-select" id="modal-collection">
+            <option value="">— Koleksiyon Seç —</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Durum</label>
+          <select class="form-select" id="modal-status">
+            <option value="taslak">Taslak</option>
+            <option value="incelemede">İncelemede</option>
+            <option value="tamamlandi">Tamamlandı</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Öncelik</label>
+          <select class="form-select" id="modal-priority">
+            <option value="dusuk">Düşük</option>
+            <option value="orta" selected>Orta</option>
+            <option value="yuksek">Yüksek</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Yazar / Mucit</label>
+        <input class="form-input" id="modal-authors" placeholder="Ad Soyad...">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Kaynak</label>
+          <input class="form-input" id="modal-source" placeholder="Dergi, şirket, kurum...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Yayın Tarihi</label>
+          <input class="form-input" type="date" id="modal-date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Referans URL</label>
+        <input class="form-input" id="modal-url" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Etiketler</label>
+        <input class="form-input" id="modal-tags" placeholder="patent, ar-ge, sensor (virgülle ayırın)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-object-modal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveFromModal()">
+        <i data-lucide="save"></i> Kaydet &amp; Düzenle
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Collection Modal -->
+<div class="modal-overlay" id="collection-modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <h2>Yeni Koleksiyon</h2>
+      <button class="modal-close" onclick="closeModal('collection-modal')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Koleksiyon Adı</label>
+        <input class="form-input" id="col-name" placeholder="Proje Adı / Çalışma Grubu...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Açıklama</label>
+        <textarea class="form-textarea" id="col-desc" placeholder="Bu koleksiyon ne için?"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('collection-modal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveCollection()">
+        <i data-lucide="folder-plus"></i> Oluştur
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-box">
+    <div class="modal-body" style="text-align:center;padding:28px 24px 20px;">
+      <div class="confirm-icon"><i data-lucide="alert-triangle"></i></div>
+      <div class="confirm-title" id="confirm-title">Emin misiniz?</div>
+      <div class="confirm-desc" id="confirm-desc">Bu işlem geri alınamaz.</div>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn btn-ghost" onclick="closeModal('confirm-modal')">İptal</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">
+        <i data-lucide="check"></i> Evet, Devam Et
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail View Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-box" style="max-width:680px;">
+    <div class="modal-header">
+      <div>
+        <h2 id="detail-modal-title">Belge Detayı</h2>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="detail-modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('detail-modal')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-meta-grid" id="detail-meta-grid"></div>
+      <div class="detail-notes" id="detail-notes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="detail-delete-btn" style="margin-right:auto" onclick="deleteFromDetail()">
+        <i data-lucide="trash-2"></i> Çöpe Taşı
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal('detail-modal')">Kapat</button>
+      <button class="btn btn-primary" id="detail-edit-btn" onclick="editFromDetail()">
+        <i data-lucide="file-edit"></i> Düzenle
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Confirm Modal -->
+<div class="modal-overlay" id="reset-modal">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-header">
+      <h2 style="color:var(--danger);">Fabrika Ayarlarına Dön</h2>
+      <button class="modal-close" onclick="closeModal('reset-modal')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--danger-bg);border:1px solid rgba(244,63,94,0.3);border-radius:var(--radius-md);padding:12px;margin-bottom:14px;font-size:12px;color:var(--danger);line-height:1.6;">
+        ⚠️ Bu işlem TÜM verilerinizi (koleksiyonlar, belgeler, profil) kalıcı olarak silecek. Geri alınamaz!
+      </div>
+      <div class="form-group">
+        <label class="form-label">Onaylamak için aşağıya <strong>SIFIRLA</strong> yazın</label>
+        <input class="form-input" id="reset-confirm-input" placeholder="SIFIRLA" style="border-color:rgba(244,63,94,0.4);">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('reset-modal')">İptal</button>
+      <button class="btn btn-danger" onclick="resetApp()">
+        <i data-lucide="alert-triangle"></i> Sıfırla
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CONTEXT MENU
+     ============================================================ -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-edit" onclick="ctxAction('edit')">
+    <i data-lucide="file-edit"></i> Düzenle
+  </div>
+  <div class="ctx-item" id="ctx-detail" onclick="ctxAction('detail')">
+    <i data-lucide="eye"></i> İncele
+  </div>
+  <div class="ctx-item" id="ctx-fav" onclick="ctxAction('fav')">
+    <i data-lucide="star"></i> Favorilere Ekle
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" id="ctx-delete" onclick="ctxAction('delete')">
+    <i data-lucide="trash-2"></i> Çöpe Taşı
+  </div>
+</div>
+
+<!-- ============================================================
+     TOAST CONTAINER
+     ============================================================ -->
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script src="js/lucide.min.js?v=25"></script>
+<script src="js/chart.umd.js?v=25"></script>
+<script src="js/db.js?v=25"></script>
+<script src="js/export.js?v=25"></script>
+<script src="js/templates.js?v=25"></script>
+<script src="js/app.js?v=25"></script>
+</body>
+</html>

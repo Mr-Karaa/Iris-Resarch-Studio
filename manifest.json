@@ -1,0 +1,16 @@
+{
+  "short_name": "IRIS Studio",
+  "name": "IRIS Research Studio",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#080b14",
+  "theme_color": "#6366f1",
+  "display": "standalone",
+  "orientation": "any"
+}

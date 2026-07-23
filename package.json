@@ -1,0 +1,30 @@
+{
+  "name": "iris-research-studio",
+  "version": "1.0.0",
+  "description": "Ar-Ge ve Araştırma Yönetim Platformu",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.iris.research.studio",
+    "publish": null,
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    }
+  },
+  "keywords": [
+    "research",
+    "studio",
+    "electron",
+    "rd"
+  ],
+  "author": "IRIS",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}
