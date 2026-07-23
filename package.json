@@ -1,6 +1,6 @@
 {
   "name": "iris-research-studio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Ar-Ge ve Araştırma Yönetim Platformu",
   "main": "main.js",
   "scripts": {
